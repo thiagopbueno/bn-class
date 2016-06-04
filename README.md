@@ -1,2 +1,2 @@
 # bn-class
-Bayesian network classifiers implemented in C/C++.
+Bayesian network classifiers implemented in Python3.
