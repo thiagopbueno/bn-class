@@ -2,6 +2,7 @@
 
 import math
 import sys
+import time
 
 class NBC(object):
 
@@ -59,11 +60,20 @@ class NBC(object):
 			self._classes = [ attr[0] for attr in self._attributes_training[-self._nclasses:] ]
 
 		if self._verbose > 0:
+			attributes = self._attributes_training[:-self._nclasses]
+			classes = self._attributes_training[-self._nclasses:]
+			max_domain = max([len(domain) for name,domain in attributes])
+			avg_domain = sum([len(domain) for name,domain in attributes])/len(attributes)
+
 			print("=== TRAINING ===")
 			print()
 			print(">> training dataset: {0}".format(self._training))
-			print(">> number of attributes = {0}".format(len(self._attributes_training)))
-			print(">> number of training instances = {0}\n".format(self._total_training))
+			print(">> number of instances  = {0}".format(self._total_training))
+			print(">> number of fields = {0}".format(len(self._attributes_training)))
+			print(">> number of classes    = {0}".format(len(classes)))
+			print(">> number of attributes = {0}".format(len(attributes)))
+			print(">> domain size: max = {0}, avg = {1}\n".format(max_domain, avg_domain))
+
 			if self._verbose > 1:
 				print("@relation = {0}\n".format(self._relation_training))
 				maxlen = max([len(attr[0]) for attr in self._attributes_training])
@@ -130,15 +140,17 @@ class NBC(object):
 			print("=== TEST ===")
 			print()
 			print(">> test dataset: {0}".format(self._test))
-			print(">> number of attributes = {0}".format(len(self._attributes_test)))
-			print(">> number of test instances = {0}\n".format(self._total_test))
-		print(">> results:")
+			print(">> number of instances = {0}".format(self._total_test))
+			print(">> number of fields = {0}\n".format(len(self._attributes_test)))
+
+		print(">> Results:")
 		max_name_size = max([len(c) for c in self._classes])
 		for j in range(len(classes)):
 			name = self._classes[j]
 			correct = self._right[name]
 			incorrect = self._wrong[name]
 			print("class = {0:{sz}} => correct = {1}, incorrect = {2}, ratio = {3:.4f}".format(name,correct,incorrect, correct/(correct + incorrect),sz=max_name_size))
+		print()
 
 	def _classify(self, attributes, classes):
 		results = []
@@ -175,5 +187,16 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 
 	nbc = NBC(args.classes, args.verbose)
+
+	start = time.clock()
 	nbc.train(args.training)
+	end = time.clock()
+	training_uptime = end-start
+
+	start = time.clock()
 	nbc.test(args.test)
+	end = time.clock()
+	testing_uptime = end-start
+
+	print(">> Training time = {0:.3f}sec.".format(training_uptime))
+	print(">> Testing time  = {0:.3f}sec.".format(testing_uptime))
