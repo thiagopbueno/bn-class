@@ -44,14 +44,17 @@ class NBC(object):
 					attributes = instance[:-self._nclasses]
 					classes = instance[-self._nclasses:]
 					assert(len(instance) == len(self._attributes_training))
+					assert(len(attributes) + len(classes) == len(self._attributes_training))
 					for i in range(len(attributes)):
 						a = attributes[i]
 						assert(a in self._attributes_training[i][1])
 						for j in range(len(classes)):
 							c = classes[j]
-							assert(c in ['0','1'])
-							self._N[ (j,c) ] = self._N.get( (j,c), 0) + 1
 							self._N[ ( (i,a), (j,c) ) ] = self._N.get(( (i,a), (j,c) ), 0) + 1
+					for j in range(len(classes)):
+						c = classes[j]
+						assert(c in ['0','1'])
+						self._N[ (j,c) ] = self._N.get( (j,c), 0) + 1
 
 			self._classes = [ attr[0] for attr in self._attributes_training[-self._nclasses:] ]
 
@@ -62,7 +65,7 @@ class NBC(object):
 			print(">> number of attributes = {0}".format(len(self._attributes_training)))
 			print(">> number of training instances = {0}\n".format(self._total_training))
 			if self._verbose > 1:
-				print("@relation = {0}\n".format(self._relation))
+				print("@relation = {0}\n".format(self._relation_training))
 				maxlen = max([len(attr[0]) for attr in self._attributes_training])
 				print("@attributes = {")
 				for name,domain in self._attributes_training[:-self._nclasses]:
@@ -72,6 +75,12 @@ class NBC(object):
 				for name,domain in self._attributes_training[-self._nclasses:]:
 					print( "  {0:{maxlen}}  :   domain={1}".format(name,domain,maxlen=maxlen))
 				print("}\n")
+			if self._verbose > 2:
+				print("@counts = {")
+				for key,val in self._N.items():
+					print("  N[{0}] = {1}".format(key,val))
+				print("}")
+				print()
 
 	def test(self, test):
 		assert(self._training is not None)
@@ -107,7 +116,8 @@ class NBC(object):
 					classes = instance[-self._nclasses:]
 					assert(len(instance) == len(self._attributes_test))
 					assert(len(instance) == len(self._attributes_training))
-					results = self._classify(attributes)
+					assert(len(attributes) + len(classes) == len(instance))
+					results = self._classify(attributes, classes)
 					for j in range(len(classes)):
 						class_name = self._classes[j]
 						c = classes[j]
@@ -122,27 +132,29 @@ class NBC(object):
 			print(">> test dataset: {0}".format(self._test))
 			print(">> number of attributes = {0}".format(len(self._attributes_test)))
 			print(">> number of test instances = {0}\n".format(self._total_test))
-			print(">> results:")
-			max_name_size = max([len(c) for c in self._classes])
-			for j in range(len(classes)):
-				name = self._classes[j]
-				correct = self._right[name]
-				incorrect = self._wrong[name]
-				print("class = {0:{size}} => correct = {1},\tincorrect = {2}".format(name,correct,incorrect, size=max_name_size))
+		print(">> results:")
+		max_name_size = max([len(c) for c in self._classes])
+		for j in range(len(classes)):
+			name = self._classes[j]
+			correct = self._right[name]
+			incorrect = self._wrong[name]
+			print("class = {0:{sz}} => correct = {1}, incorrect = {2}, ratio = {3:.4f}".format(name,correct,incorrect, correct/(correct + incorrect),sz=max_name_size))
 
-	def _classify(self, attributes):
+	def _classify(self, attributes, classes):
 		results = []
 		n = len(attributes)
-		for j in range(len(self._classes)):
+		for j in range(len(classes)):
+			domain = self._attributes_test[-self._nclasses+j][1]
 			max_ll = -sys.maxsize
 			clss = None
-			for v in self._attributes_test[-self._nclasses+j][1]:
-				ll = (1-n)*math.log(self._N.get((j,v),2))
+			for v in domain:
+				ll = (1-n)*math.log(self._N.get((j,v),len(domain)))
 				for i in range(n):
 					a = attributes[i]
 					ll += math.log(self._N.get(((i,a),(j,v)),1))
 				if ll > max_ll:
 					clss = v
+					max_ll = ll
 			results.append(clss)
 		return results
 
@@ -159,7 +171,7 @@ if __name__ == '__main__':
 	parser.add_argument("training", help="path to training dataset")
 	parser.add_argument("test", help="path to test dataset")
 	parser.add_argument("-c", "--classes", type=int, default=1, help="number of class attributes (multidimensional)")
-	parser.add_argument("-v", "--verbose", type=int, default=0, choices=[0,1,2], help="verbose mode (default 0)")
+	parser.add_argument("-v", "--verbose", type=int, default=0, choices=[0,1,2,3], help="verbose mode (default 0)")
 	args = parser.parse_args()
 
 	nbc = NBC(args.classes, args.verbose)
